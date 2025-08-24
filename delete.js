@@ -560,68 +560,67 @@
         },
 
         async slowDelete() {
-            //document.getElementById("toggleAdvanced").click()
-            document.getElementById('start').remove()
-            TweetsXer.total = TweetsXer.TweetCount
-            TweetsXer.createProgressBar()
+    document.getElementById('start').remove()
+    TweetsXer.total = TweetsXer.TweetCount
+    TweetsXer.createProgressBar()
 
-            document.querySelectorAll('[data-testid="ScrollSnap-List"] a')[1].click()
-            await TweetsXer.sleep(2000)
+    document.querySelectorAll('[data-testid="ScrollSnap-List"] a')[1].click()
+    await TweetsXer.sleep(2000)
 
-            let unretweet, confirmURT, caret, menu, confirmation
+    let unretweet, confirmURT, caret, menu, confirmation
+    const more = '[data-testid="tweet"] [data-testid="caret"]'
+    let skipped = 0; // counter for skipped tweets
 
-            const more = '[data-testid="tweet"] [data-testid="caret"]'
-            while (document.querySelectorAll(more).length > 0) {
+    while (document.querySelectorAll(more).length > 0) {
+        await TweetsXer.sleep(1200)
 
-                // give the Tweets a chance to load; increase/decrease if necessary
-                // afaik the limit is 50 requests per minute
-                await TweetsXer.sleep(1200)
+        // hide recommended junk
+        document.querySelectorAll('section [data-testid="cellInnerDiv"]>div>div>div').forEach(x => x.remove())
+        document.querySelectorAll('section [data-testid="cellInnerDiv"]>div>div>[role="link"]').forEach(x => x.remove())
+        document.querySelector(more).scrollIntoView({ 'behavior': 'smooth' })
 
-                // hide recommended profiles and stuff
-                document.querySelectorAll('section [data-testid="cellInnerDiv"]>div>div>div').forEach(x => x.remove())
-                document.querySelectorAll('section [data-testid="cellInnerDiv"]>div>div>[role="link"]').forEach(x => x.remove())
-                document.querySelector(more).scrollIntoView({
-                    'behavior': 'smooth'
-                })
+        // ✅ Skip first 30 tweets
+        if (skipped < 30) {
+            skipped++
+            // just remove tweet from DOM without deleting
+            const firstTweet = document.querySelector('[data-testid="tweet"]')
+            if (firstTweet) firstTweet.remove()
+            console.log(`Skipped tweet #${skipped}`)
+            continue
+        }
 
-                // if it is a Retweet, unretweet it
-                unretweet = document.querySelector('[data-testid="unretweet"]')
-                if (unretweet) {
-                    unretweet.click()
-                    confirmURT = await waitForElemToExist('[data-testid="unretweetConfirm"]')
-                    confirmURT.click()
-                }
+        // if it is a Retweet, unretweet it
+        unretweet = document.querySelector('[data-testid="unretweet"]')
+        if (unretweet) {
+            unretweet.click()
+            confirmURT = await waitForElemToExist('[data-testid="unretweetConfirm"]')
+            confirmURT.click()
+        }
+        // delete Tweet
+        else {
+            caret = await waitForElemToExist(more)
+            caret.click()
 
-                // delete Tweet
-                else {
-                    caret = await waitForElemToExist(more)
-                    caret.click()
-
-
-                    menu = await waitForElemToExist('[role="menuitem"]')
-                    if (menu.textContent.includes('@')) {
-                        // don't unfollow people (because their Tweet is the reply tab)
-                        caret.click()
-                        document.querySelector('[data-testid="tweet"]').remove()
-                    } else {
-                        menu.click()
-                        confirmation = await waitForElemToExist('[data-testid="confirmationSheetConfirm"]')
-                        if (confirmation) confirmation.click()
-                    }
-                }
-
-                TweetsXer.dCount++
-                TweetsXer.updateProgressBar()
-
-                // print to the console how many Tweets already got deleted
-                // Change the 100 to how often you want an update.
-                // 10 for every 10th Tweet, 1 for every Tweet, 100 for every 100th Tweet
-                if (TweetsXer.dCount % 100 == 0) console.log(`${new Date().toUTCString()} Deleted ${TweetsXer.dCount} Tweets`)
-
+            menu = await waitForElemToExist('[role="menuitem"]')
+            if (menu.textContent.includes('@')) {
+                caret.click()
+                document.querySelector('[data-testid="tweet"]').remove()
+            } else {
+                menu.click()
+                confirmation = await waitForElemToExist('[data-testid="confirmationSheetConfirm"]')
+                if (confirmation) confirmation.click()
             }
+        }
 
-            console.log('No Tweets left. Please reload to confirm.')
-        },
+        TweetsXer.dCount++
+        TweetsXer.updateProgressBar()
+
+        if (TweetsXer.dCount % 100 == 0) 
+            console.log(`${new Date().toUTCString()} Deleted ${TweetsXer.dCount} Tweets`)
+    }
+
+    console.log('No Tweets left. Please reload to confirm.')
+},
 
         async unfollow() {
             //document.getElementById("toggleAdvanced").click()
